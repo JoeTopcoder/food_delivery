@@ -11,6 +11,7 @@ import '../../../widgets/common/full_screen_image.dart';
 import 'package:food_driver/config/app_constants.dart';
 import '../finance/admin_wallet_adjust_sheet.dart';
 import '../finance/admin_wallet_history_screen.dart';
+import '../../../config/supabase_config.dart';
 
 class AdminUsersScreen extends ConsumerStatefulWidget {
   const AdminUsersScreen({super.key});
@@ -745,6 +746,10 @@ class _UserDetailsSheet extends ConsumerWidget {
           // Wallet balance + order history summary
           _CustomerActivity(userId: user.id),
 
+          const SizedBox(height: 12),
+          // Cards on file + card top-up/charge history (successful + failed)
+          _UserCardsAndTopups(userId: user.id),
+
           const SizedBox(height: 20),
 
           // Wallet actions
@@ -1063,6 +1068,137 @@ class _CustomerActivity extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Cards on file + card top-up/charge history (admin view) ──────────────────
+class _UserCardsAndTopups extends StatelessWidget {
+  final String userId;
+  const _UserCardsAndTopups({required this.userId});
+
+  Future<Map<String, dynamic>> _fetch() async {
+    final res = await SupabaseConfig.client
+        .rpc('admin_get_user_cards', params: {'p_user_id': userId});
+    return (res as Map).cast<String, dynamic>();
+  }
+
+  Color _statusColor(String s) {
+    switch (s.toLowerCase()) {
+      case 'verified':
+      case 'completed':
+      case 'succeeded':
+        return const Color(0xFF10B981);
+      case 'pending':
+      case 'processing':
+        return const Color(0xFFF59E0B);
+      default: // failed, declined, error
+        return const Color(0xFFEF4444);
+    }
+  }
+
+  String _fmtDate(String? raw) {
+    final d = raw == null ? null : DateTime.tryParse(raw)?.toLocal();
+    if (d == null) return '';
+    const m = ['', 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${m[d.month]} ${d.day}, ${d.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sym = AppConstants.currencySymbol;
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _fetch(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: SizedBox(width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
+        if (snap.hasError) {
+          return Text('Cards unavailable: ${friendlyError(snap.error)}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)));
+        }
+        final data = snap.data ?? const {};
+        final cards = (data['saved_cards'] as List?) ?? const [];
+        final charges = (data['card_charges'] as List?) ?? const [];
+
+        Widget badge(String s) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            color: _statusColor(s).withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(s, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700,
+              color: _statusColor(s))),
+        );
+
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Cards on File',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280))),
+              const SizedBox(height: 8),
+              if (cards.isEmpty)
+                const Text('No cards added.', style: TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)))
+              else
+                ...cards.map((c) {
+                  final m = c as Map;
+                  final status = (m['status'] ?? '').toString();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(children: [
+                      const Icon(Icons.credit_card_rounded, size: 18, color: Color(0xFF6B7280)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                        '${(m['brand'] ?? 'Card').toString().toUpperCase()} •••• ${m['last4'] ?? '----'}'
+                        '${m['is_default'] == true ? '  ★' : ''}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                      badge(status),
+                    ]),
+                  );
+                }),
+
+              const SizedBox(height: 14),
+              const Text('Card Top-ups / Charges',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF6B7280))),
+              const SizedBox(height: 8),
+              if (charges.isEmpty)
+                const Text('No card top-ups yet.', style: TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)))
+              else
+                ...charges.map((c) {
+                  final m = c as Map;
+                  final status = (m['status'] ?? '').toString();
+                  final amt = (m['amount'] as num?)?.toDouble() ?? 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(children: [
+                      Icon(_statusColor(status) == const Color(0xFF10B981)
+                              ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                          size: 16, color: _statusColor(status)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('$sym${amt.toStringAsFixed(2)} · ${(m['brand'] ?? '').toString().toUpperCase()} •••• ${m['last4'] ?? '----'}',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                        Text(_fmtDate(m['created_at'] as String?),
+                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF9CA3AF))),
+                      ])),
+                      badge(status),
+                    ]),
+                  );
+                }),
+            ],
+          ),
+        );
+      },
     );
   }
 }
