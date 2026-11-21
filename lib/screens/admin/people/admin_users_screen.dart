@@ -1152,6 +1152,13 @@ class _UserCardsAndTopups extends StatelessWidget {
             final status = (m['status'] ?? '').toString();
             final amt = (m['amount'] as num?)?.toDouble() ?? 0;
             final ok = _statusColor(status) == const Color(0xFF10B981);
+            // Verification rows carry card brand/last4; top-up (deposit) rows
+            // carry a payment method / description instead.
+            final brand = (m['brand'] ?? '').toString();
+            final last4 = (m['last4'] ?? '').toString();
+            final via = brand.isNotEmpty
+                ? '${brand.toUpperCase()} •••• ${last4.isEmpty ? '----' : last4}'
+                : (m['method'] ?? m['description'] ?? '').toString();
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(children: [
@@ -1159,7 +1166,7 @@ class _UserCardsAndTopups extends StatelessWidget {
                     size: 16, color: _statusColor(status)),
                 const SizedBox(width: 8),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('$sym${amt.toStringAsFixed(2)} · ${(m['brand'] ?? '').toString().toUpperCase()} •••• ${m['last4'] ?? '----'}',
+                  Text('$sym${amt.toStringAsFixed(2)}${via.isEmpty ? '' : ' · $via'}',
                       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                   Text(_fmtDate(m['created_at'] as String?),
                       style: const TextStyle(fontSize: 10.5, color: Color(0xFF9CA3AF))),
