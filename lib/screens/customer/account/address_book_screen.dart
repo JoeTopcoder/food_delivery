@@ -7,6 +7,7 @@ import '../../../providers/auth_user/address_provider.dart';
 import '../account/map_location_picker_screen.dart';
 import '../../../utils/friendly_error.dart';
 import '../../../utils/app_feedback_widgets.dart';
+import '../../../services/location/geocoding_service.dart';
 import '../../../utils/context_extensions.dart';
 
 class AddressBookScreen extends ConsumerWidget {
@@ -423,13 +424,22 @@ class _EditAddressSheetState extends ConsumerState<_EditAddressSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
+      var lat = _latitude;
+      var lng = _longitude;
+      // Typed address with no map pin → geocode the text so checkout (which
+      // needs coordinates) accepts it instead of asking to add an address.
+      if (lat == null || lng == null) {
+        final geo = await GeocodingService.geocode(
+            _addressCtrl.text.trim(), countryCode: 'jm');
+        if (geo != null) { lat = geo.lat; lng = geo.lng; }
+      }
       final service = ref.read(addressServiceProvider);
       await service.updateAddress(
         addressId: widget.address.id,
         label: _label,
         address: _addressCtrl.text.trim(),
-        latitude: _latitude,
-        longitude: _longitude,
+        latitude: lat,
+        longitude: lng,
       );
       widget.onSaved();
       if (mounted) Navigator.pop(context);
@@ -624,13 +634,22 @@ class _AddressSheetState extends ConsumerState<_AddressSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
+      var lat = _latitude;
+      var lng = _longitude;
+      // Typed address with no map pin → geocode the text so checkout (which
+      // needs coordinates) accepts it instead of asking to add an address.
+      if (lat == null || lng == null) {
+        final geo = await GeocodingService.geocode(
+            _addressCtrl.text.trim(), countryCode: 'jm');
+        if (geo != null) { lat = geo.lat; lng = geo.lng; }
+      }
       final service = ref.read(addressServiceProvider);
       await service.addAddress(
         userId: widget.userId,
         label: _label,
         address: _addressCtrl.text.trim(),
-        latitude: _latitude,
-        longitude: _longitude,
+        latitude: lat,
+        longitude: lng,
         isDefault: _isDefault,
       );
       widget.onSaved();
