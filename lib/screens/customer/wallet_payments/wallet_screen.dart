@@ -223,6 +223,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     SavedCard card,
     String cvv,
   ) async {
+    // Strict: only a verified card may be charged.
+    if (!card.isVerified) {
+      AppSnackbar.error(
+        context,
+        'This card isn\'t verified yet. Verify it before topping up.',
+      );
+      return;
+    }
     final paymentService = ref.read(paymentServiceProvider);
     final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
     final session = await paymentService.prepareSavedCardPayment(
@@ -264,7 +272,25 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     }
     if (!mounted) return;
     try {
-      await ref.read(walletNotifierProvider.notifier).deposit(amount);
+      // Server-authoritative credit: the edge function re-verifies the
+      // PaymentIntent with Stripe and credits the wallet from the PI's own
+      // metadata (idempotent). The client no longer credits the wallet
+      // directly, so a fake/replayed call can't add money.
+      final credited = await paymentService.confirmStripePayment(
+        paymentIntentId: session.paymentIntentId,
+        orderId: topupId,
+        type: 'wallet_topup',
+      );
+      if (!credited) {
+        if (mounted) {
+          AppSnackbar.error(
+            context,
+            'Payment charged but wallet credit failed. Contact support with ref: wallet-topup',
+          );
+        }
+        return;
+      }
+      await ref.read(walletNotifierProvider.notifier).refresh();
       ref.invalidate(walletTransactionsStreamProvider);
       if (mounted) {
         AppSnackbar.success(
@@ -282,41 +308,40 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     }
   }
 
+  // Strict card policy: a brand-new card is unverified, so it can NEVER be
+  // charged for a top-up. The customer must add the card and complete the
+  // small micro-charge verification first; only then can that (now verified)
+  // saved card be used to top up. This routes them to Add Card instead of
+  // charging an unverified card.
   Future<void> _depositWithNewCard(double amount) async {
-    final paymentService = ref.read(paymentServiceProvider);
-    final authUser = Supabase.instance.client.auth.currentUser;
-    final email = authUser?.email ?? '';
-    final name = authUser?.userMetadata?['name'] as String? ?? 'Customer';
-    final topupId = 'wallet-${DateTime.now().millisecondsSinceEpoch}';
-    final result = await paymentService.presentStripePaymentSheet(
-      orderId: topupId,
-      amount: amount,
-      customerEmail: email,
-      customerName: name,
-      type: 'wallet_topup',
-    );
     if (!mounted) return;
-    if (result == null) {
-      AppSnackbar.warning(context, 'Top-up cancelled');
-      return;
-    }
-    try {
-      await ref.read(walletNotifierProvider.notifier).deposit(amount);
-      ref.invalidate(walletTransactionsStreamProvider);
-      if (mounted) {
-        AppSnackbar.success(
-          context,
-          '${AppConstants.currencySymbol}${amount.toStringAsFixed(2)} added to wallet',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppSnackbar.error(
-          context,
-          'Payment charged but wallet update failed. Contact support with ref: wallet-topup',
-        );
-      }
-    }
+    final addNow = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verify a card first'),
+        content: const Text(
+          'For your security, a card must be verified before it can be used. '
+          'Add your card, then confirm the small verification charge that '
+          'appears on your statement. Once verified, you can top up with it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Add Card'),
+          ),
+        ],
+      ),
+    );
+    if (addNow != true || !mounted) return;
+    final userId = ref.read(currentUserIdProvider);
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const AddCardScreen()),
+    );
+    if (userId != null) ref.invalidate(savedCardsProvider(userId));
   }
 
   // ── Saved cards section ───────────────────────────────────────────────────

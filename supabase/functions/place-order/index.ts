@@ -701,6 +701,20 @@ Deno.serve(async (request) => {
       chargedUsd = usdCents / 100;
       chargedFxRate = fxRate;
       if (savedCardPaymentMethodId) {
+        // Strict: the card must have completed micro-charge verification.
+        // An unverified/pending card can never be used to pay for anything.
+        const { data: cardRow } = await admin
+          .from("saved_cards")
+          .select("status")
+          .eq("user_id", userId)
+          .eq("stripe_payment_method_id", savedCardPaymentMethodId)
+          .maybeSingle();
+        if (!cardRow || cardRow.status !== "verified") {
+          return json({
+            error: "This card isn't verified yet. Please verify the card " +
+              "(enter the small verification charge amount) before using it.",
+          }, 402);
+        }
         const custId = await getStripeCustomerId(userId);
         const pi = await stripePost("/payment_intents", {
           amount:              String(usdCents),

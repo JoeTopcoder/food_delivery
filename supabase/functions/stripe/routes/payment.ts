@@ -377,10 +377,51 @@ export async function handle(request: Request): Promise<Response> {
           .eq("id", orderId);
       }
 
+      // ── Server-authoritative wallet top-up ───────────────────────────────
+      // Credit the wallet ONLY here, from the PaymentIntent's own metadata,
+      // after Stripe confirms it succeeded. The client can no longer call
+      // wallet_deposit directly (REVOKEd). Idempotent on the PaymentIntent id.
+      let walletBalance: number | null = null;
+      if (isSucceeded && txnType === "wallet_topup") {
+        const meta = (pi.metadata ?? {}) as Record<string, string>;
+        // The PI must belong to the authenticated caller.
+        if (meta.user_id && meta.user_id !== userData.user.id) {
+          return json({ error: "This payment does not belong to you." }, 403);
+        }
+        if (meta.type !== "wallet_topup") {
+          return json({ error: "This payment is not a wallet top-up." }, 400);
+        }
+        // Credit the JMD amount recorded on the PI, not any client-sent value.
+        const jmdAmount = Number(meta.jmd_amount ?? "0");
+        if (!(jmdAmount > 0)) {
+          return json({ error: "Invalid top-up amount on payment." }, 400);
+        }
+        const { data: credit, error: creditErr } = await adminClient.rpc(
+          "wallet_credit_from_stripe",
+          {
+            p_user_id: userData.user.id,
+            p_amount: jmdAmount,
+            p_payment_intent_id: pi.id,
+            p_method: "card",
+          },
+        );
+        if (creditErr) {
+          return json(
+            { error: `Wallet credit failed: ${creditErr.message}` },
+            500,
+          );
+        }
+        const c = credit as Record<string, unknown> | null;
+        walletBalance = c && typeof c.balance === "number"
+          ? (c.balance as number)
+          : null;
+      }
+
       return json({
         status: piStatus,
         success: isSucceeded,
         paymentIntentId: pi.id,
+        walletBalance,
       });
     } catch (e) {
       return json(
